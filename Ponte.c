@@ -1,40 +1,99 @@
 #include <stdio.h>
-#include <windows>
+#include <windows.h>
 #include <time.h>
-DWORD carros_ponte=0;
+#include <stdlib.h>
 
+// Contadores globais
+DWORD carros_norte_ponte = 0;
+DWORD carros_sul_ponte = 0;
+DWORD total_violacoes_c1 = 0;
+DWORD total_violacoes_c2 = 0;
+DWORD travessia_Global;
+
+// Estrutura dos carros
 typedef enum { NORTE = 0, SUL = 1 } Sentido;
 
 typedef struct {
-	int id;
-	Sentido sentido;
-	DWORD chegada; /* instante de chegada, em ms */
-	DWORD entrada; /* preenchido por ponte_entrar */
-	DWORD saida; /* preenchido por ponte_sair */
+    int id;//identificador do carro
+    Sentido sentido;
+    DWORD chegada; 
+    DWORD entrada; 
+    DWORD saida; 
 } Carro;
 
-Carro criar_carro(){
-	Carro carro= malloc(sizeof(Carro));
 
-}
-void ponte_entrar(Carro *c){
-	carros_ponte++;
-} /* bloqueia até ser seguro entrar */
-void ponte_sair(Carro *c){
-	
-	carros_ponte--;
+DWORD WINAPI gerar_carro(LPVOID carro){
+	Carro *c= (Carro*) carro;
+	Sleep(c->chegada);
+    ponte_entrar(c);
+    Sleep(travessia_Global);
+    ponte_sair(c);
 }
 
-void main(args[]){
+
+void ponte_entrar(Carro *c) {
+    if (c->sentido == NORTE) {
+        carros_norte_ponte++;
+    } else {
+        carros_sul_ponte++;
+    }
+    if (carros_norte_ponte > 0 && carros_sul_ponte > 0) {
+        total_violacoes_c1++;
+        printf("[VIOLAÇÃO C1] Carros do Norte e Sul na ponte em simultâneo!\n");
+    }
+    DWORD total_na_ponte = carros_norte_ponte + carros_sul_ponte;
+    if (total_na_ponte > 3) {
+        total_violacoes_c2++;
+        printf("[VIOLAÇÃO C2] Capacidade máxima excedida: %ld carros na ponte!\n", total_na_ponte);
+    }
+}
+
+void ponte_sair(Carro *c) {
+    if (c->sentido == NORTE) {
+        carros_norte_ponte--;
+    } else {
+        carros_sul_ponte--;
+    }
+}
+
+int main(int argc, char *argv[]) {
 	int i;
-	int N_carros= N_carrosSul + N_carrosNorte;
-	Carro carros_sul[N_carrosSul];
-	Carro carros_norte[N_carrosNorte];
-	
-	while(N_carros){
-		while(carros_ponte<5){
-			pode_entrar();
-		}
+    int n_norte = atoi(argv[1]);
+    int n_sul = atoi(argv[2]);
+    int chegada_ms = atoi(argv[3]);
+    int travessia_ms = atoi(argv[4]);
+    int total_carros= n_norte+n_sul;
+    travessia_Global= (DWORD) travessia_ms;
+    
+    HANDLE *carros_threadsH = malloc(total_carros * sizeof(HANDLE));
+    Carro *carros = malloc(total_carros * sizeof(Carro));
+    srand(time(NULL));
+    
+    for(i=0;i<n_norte;i++){
+    	carros[i].id=i;
+    	carros[i].sentido= 0;
+    	carros[i].chegada = rand() % (chegada_ms + 1);
+    	
+    	carros_threadsH[i]= CreateThread(NULL, 0, gerar_carro, &carros[i], 0, NULL);
+    	
 	}
-	return;
+	
+	for(i=n_norte;i<n_norte+n_sul;i++){
+    	carros[i].id=i;
+    	carros[i].sentido= 1;
+    	carros[i].chegada = rand() % (chegada_ms + 1);
+    	
+    	carros_threadsH[i]= CreateThread(NULL, 0, gerar_carro, &carros[i], 0, NULL);
+	}
+    WaitForMultipleObjects(total_carros, carros_threadsH, TRUE, INFINITE);
+
+    for (i = 0; i < total_carros; i++) {
+        CloseHandle(carros_threadsH[i]);
+    }
+
+    free(carros_threadsH);
+    free(carros);
+
+    printf("Simulação terminada. Violações C1: %ld, Violações C2: %ld\n", total_violacoes_c1, total_violacoes_c2);
+    return 0;
 }
