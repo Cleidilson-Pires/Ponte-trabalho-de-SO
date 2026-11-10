@@ -45,12 +45,12 @@ void ponte_entrar(Carro *c) {
     }
     if (carros_norte_ponte > 0 && carros_sul_ponte > 0) {
         total_violacoes_c1++;
-        printf("[VIOLAÇÃO C1] Carros do Norte e Sul na ponte em simultâneo!\n");
+        printf("[VIOLACAO C1] Carros do Norte e Sul na ponte em simultaneo!\n");
     }
     DWORD total_na_ponte = carros_norte_ponte + carros_sul_ponte;
     if (total_na_ponte > 3) {
         total_violacoes_c2++;
-        printf("[VIOLAÇÃO C2] Capacidade máxima excedida: %ld carros na ponte!\n", total_na_ponte);
+        printf("[VIOLACAO C2] Capacidade maxima excedida: %ld carros na ponte!\n", total_na_ponte);
     }
 }
 
@@ -104,6 +104,6 @@ int main(int argc, char *argv[]) {
 	//Liberta os espaços alocados na memória
     free(carros_threadsH);
     free(carros);
-    printf("Simulação terminada. Violações C1: %ld, Violações C2: %ld\n", total_violacoes_c1, total_violacoes_c2);
+    printf("Simulacao terminada. Violações C1: %ld, Violações C2: %ld\n", total_violacoes_c1, total_violacoes_c2);
     return 0;
 }
