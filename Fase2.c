@@ -110,6 +110,6 @@ int main(int argc, char *argv[]) {
 	//Liberta os espaços alocados na memória
     free(carros_threadsH);
     free(carros);
-    printf("Simulacao terminada. Violações C1: %ld, Violações C2: %ld\n", total_violacoes_c1, total_violacoes_c2);
+    printf("Simulacao terminada. Violacoes C1: %ld, Violacoes C2: %ld\n", total_violacoes_c1, total_violacoes_c2);
     return 0;
 }
