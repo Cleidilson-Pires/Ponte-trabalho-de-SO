@@ -104,7 +104,8 @@ void verificador(int total_na_ponte){
 }
 
 void carro_vrumvrum(Carro* carro){
-	printf("O carro %d passou no sentido %d \n",carro->id,carro->sentido);
+    printf("O carro %d passou no sentido %d, chegou em %lu\n", 
+           carro->id, carro->sentido, carro->chegada);
 }
 
 

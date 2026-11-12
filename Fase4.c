@@ -45,6 +45,7 @@ void ponte_entrar(Carro *c) {
    	Sleep(c->chegada);
    	WaitForSingleObject(Torniquete, INFINITE);
     WaitForSingleObject(Semaforo_Ponte, INFINITE);//espera o semaforo estar disponivel e decrementa 1 caso esteja
+    c->entrada = GetTickCount();
     carro_vrumvrum(c);
     if (c->sentido == NORTE) {
         while (1) {
@@ -107,7 +108,8 @@ void verificador(int total_na_ponte){
 }
 
 void carro_vrumvrum(Carro* carro){
-	printf("O carro %d passou no sentido %d \n",carro->id,carro->sentido);
+    printf("O carro %d passou no sentido %d, chegou em %lu e entrou com carimbo %lu\n", 
+           carro->id, carro->sentido, carro->chegada, carro->entrada);
 }
 
 
@@ -130,6 +132,8 @@ int main(int argc, char *argv[]) {
     //Array das Threads dos carros e dos dados dos carros
     HANDLE *carros_threadsH = malloc(total_carros * sizeof(HANDLE));
     Carro *carros = malloc(total_carros * sizeof(Carro));
+    
+	//Iniciação da semente
     srand(time(NULL));
     
     //inicia todos os arrays de acordo com os argumentos passados
@@ -152,7 +156,7 @@ int main(int argc, char *argv[]) {
     }
     WaitForMultipleObjects(total_carros, carros_threadsH, TRUE, INFINITE);
 
-	//fecha os threads
+	//fecha os threads e handles
     for (i = 0; i < total_carros; i++) {
         CloseHandle(carros_threadsH[i]);
     }
@@ -163,6 +167,7 @@ int main(int argc, char *argv[]) {
 	//Liberta os espaços alocados na memória
     free(carros_threadsH);
     free(carros);
+    
     printf("Simulacao terminada. Violacoes C1: %ld, Violacoes C2: %ld\n", total_violacoes_c1, total_violacoes_c2);
     return 0;
 }
