@@ -24,6 +24,73 @@ typedef struct {
     DWORD entrada; 
     DWORD saida; 
 } Carro;
+
+void verificador(int total_na_ponte);
+void carro_vrumvrum(Carro* carro);
+void ponte_entrar(Carro *c);
+void ponte_sair(Carro *c);
+DWORD WINAPI gerar_carro(LPVOID carro);
+
+//Gera um carro e o manda para a ponte
+DWORD WINAPI gerar_carro(LPVOID carro){
+	Carro *c= (Carro*) carro;
+    ponte_entrar(c);
+    ponte_sair(c);
+    return 0;
+}
+
+void ponte_entrar(Carro *c) {
+   	Sleep(c->chegada);
+    WaitForSingleObject(Semaforo_Ponte, INFINITE);//espera o semaforo estar disponivel e decrementa 1 caso esteja
+    carro_vrumvrum(c);
+    if (c->sentido == NORTE) {
+        while (1) {
+            WaitForSingleObject(hmutex, INFINITE);//mutex na região critica
+            if (carros_sul_ponte == 0) {//verifica se ainda há carros do sentido sul circulando na ponte
+                carros_norte_ponte++;
+                ReleaseMutex(hmutex);
+                break;
+            }
+            ReleaseMutex(hmutex);
+        }
+    }
+    else { // SUL
+        while (1) {
+            WaitForSingleObject(hmutex, INFINITE);//mutex na região critica
+            if (carros_norte_ponte == 0) {//verifica se ainda há carros do sentido norte circulando na ponte
+                carros_sul_ponte++;
+                ReleaseMutex(hmutex);
+                break;
+            }
+            ReleaseMutex(hmutex);
+        }
+    }
+    
+	// Verificação das violações    
+    WaitForSingleObject(hmutex, INFINITE);//mutex na região critica
+
+    DWORD total_na_ponte = carros_norte_ponte + carros_sul_ponte;
+    verificador(total_na_ponte);
+    ReleaseMutex(hmutex);
+}
+
+
+void ponte_sair(Carro *c) {
+	Sleep(travessia_Global);
+	
+	
+    WaitForSingleObject(hmutex, INFINITE);//mutex na região critica
+    if (c->sentido == NORTE) {
+        carros_norte_ponte--;
+    } else {
+        carros_sul_ponte--;
+    }
+    
+    ReleaseMutex(hmutex);
+    
+    ReleaseSemaphore(Semaforo_Ponte, 1, NULL);
+}
+
 //Verificador de violações das regras
 void verificador(int total_na_ponte){
 	if (carros_norte_ponte > 0 && carros_sul_ponte > 0) {
@@ -40,67 +107,6 @@ void carro_vrumvrum(Carro* carro){
 	printf("O carro %d passou no sentido %d \n",carro->id,carro->sentido);
 }
 
-void ponte_entrar(Carro *c) {
-   	Sleep(c->chegada);
-    WaitForSingleObject(Semaforo_Ponte, INFINITE);//espera o semaforo estar disponivel e decrementa 1 caso esteja
-    carro_vrumvrum(c);
-    if (c->sentido == NORTE) {
-        while (1) {
-            WaitForSingleObject(hmutex, INFINITE);
-            if (carros_sul_ponte == 0) {//verifica se ainda há carros do sentido sul circulando na ponte
-                carros_norte_ponte++;
-                ReleaseMutex(hmutex);
-                break;
-            }
-            ReleaseMutex(hmutex);
-        }
-    }
-    else { // SUL
-        while (1) {
-            WaitForSingleObject(hmutex, INFINITE);
-            if (carros_norte_ponte == 0) {//verifica se ainda há carros do sentido norte circulando na ponte
-                carros_sul_ponte++;
-                ReleaseMutex(hmutex);
-                break;
-            }
-            ReleaseMutex(hmutex);
-        }
-    }
-    
-    // Verificações de segurança (agora com contadores fieis à realidade)
-    WaitForSingleObject(hmutex, INFINITE);
-
-    DWORD total_na_ponte = carros_norte_ponte + carros_sul_ponte;
-    verificador(total_na_ponte);
-    ReleaseMutex(hmutex);
-}
-
-
-
-void ponte_sair(Carro *c) {
-	Sleep(travessia_Global);
-	
-	
-    WaitForSingleObject(hmutex, INFINITE);
-    if (c->sentido == NORTE) {
-        carros_norte_ponte--;
-    } else {
-        carros_sul_ponte--;
-    }
-    
-    ReleaseMutex(hmutex);
-    
-    ReleaseSemaphore(Semaforo_Ponte, 1, NULL);
-}
-
-
-//Gera um carro e o manda para a ponte
-DWORD WINAPI gerar_carro(LPVOID carro){
-	Carro *c= (Carro*) carro;
-    ponte_entrar(c);
-    ponte_sair(c);
-    return 0;
-}
 
 int main(int argc, char *argv[]) {
 	int i;
@@ -111,6 +117,7 @@ int main(int argc, char *argv[]) {
     int total_carros= n_norte+n_sul;
     travessia_Global= (DWORD) travessia_ms;
     
+    //mutex para auxiliar em regiões criticas
     hmutex = CreateMutex(NULL, FALSE, NULL);
     //Inicia o semaforo com numero maximo= Max_ponte e inicia em MAX_PONTE
     Semaforo_Ponte= CreateSemaphore(NULL, Max_Ponte, Max_Ponte, NULL);
@@ -121,7 +128,7 @@ int main(int argc, char *argv[]) {
     srand(time(NULL));
     
     //inicia todos os arrays de acordo com os argumentos passados
-    int index = 0;
+    int index = 0;//id dos carros
     
     for(i = 0; i < n_norte; i++){
         carros[index].id = index;
@@ -130,7 +137,6 @@ int main(int argc, char *argv[]) {
         carros_threadsH[index] = CreateThread(NULL, 0, gerar_carro, &carros[index], 0, NULL);
         index++;
     }
-
     // Criar carros do sentido SUL (1)
     for(i = 0; i < n_sul; i++){
         carros[index].id = index;
@@ -139,14 +145,14 @@ int main(int argc, char *argv[]) {
         carros_threadsH[index] = CreateThread(NULL, 0, gerar_carro, &carros[index], 0, NULL);
         index++;
     }
-	
     WaitForMultipleObjects(total_carros, carros_threadsH, TRUE, INFINITE);
 
 	//fecha os threads
     for (i = 0; i < total_carros; i++) {
         CloseHandle(carros_threadsH[i]);
     }
-
+	CloseHandle(hmutex);
+	CloseHandle(Semaforo_Ponte);
 	//Liberta os espaços alocados na memória
     free(carros_threadsH);
     free(carros);
